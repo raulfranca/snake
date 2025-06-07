@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha - Estilo Nokia</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --nokia-bg: #c7f0d8;
+            --nokia-fg: #43523d;
+            --nokia-dark: #3a4436;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #1e1e1e;
+            color: var(--nokia-fg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            touch-action: manipulation;
+        }
+
+        .phone-container {
+            background-color: #2c3e50;
+            padding: 30px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.5);
+            border: 3px solid #1a2531;
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .screen {
+            background-color: var(--nokia-bg);
+            border: 4px solid var(--nokia-dark);
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--nokia-fg);
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #score {
+            font-size: 24px;
+        }
+        
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            width: 100%;
+            /* Make the board a square */
+            aspect-ratio: 1 / 1; 
+            background-color: var(--nokia-bg);
+            border: 2px solid var(--nokia-fg);
+            position: relative;
+        }
+
+        .snake-bit {
+            background-color: var(--nokia-fg);
+        }
+
+        .food {
+            background-color: var(--nokia-fg);
+             /* Make food flash */
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                background-color: transparent;
+            }
+        }
+
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--nokia-bg);
+            border: 2px solid var(--nokia-fg);
+            padding: 20px;
+            text-align: center;
+            display: none;
+            z-index: 10;
+            font-size: 20px;
+            line-height: 1.5;
+            color: var(--nokia-fg);
+        }
+
+        #message-box button {
+            background-color: var(--nokia-fg);
+            color: var(--nokia-bg);
+            border: none;
+            padding: 10px 20px;
+            margin-top: 15px;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left center right"
+                ". down .";
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            background-color: #5a6a7a;
+            color: #d0d5db;
+            border: 2px solid #3e4a56;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 4px #3e4a56;
+            transition: all 0.1s ease;
+            user-select: none; /* Prevent text selection on tap */
+        }
+        
+        .control-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #3e4a56;
+        }
+
+        #up { grid-area: up; }
+        #left { grid-area: left; }
+        #right { grid-area: right; }
+        #down { grid-area: down; }
+        
+    </style>
+</head>
+<body>
+
+    <div class="phone-container">
+        <div class="screen">
+            <div class="header">
+                <div class="title">SNAKE</div>
+                <div id="score">SCORE: 0</div>
+            </div>
+            <div id="game-board">
+                <div id="message-box">
+                    <div id="message-text"></div>
+                    <button id="restart-button">Reiniciar</button>
+                </div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="control-btn" id="up">▲</button>
+            <button class="control-btn" id="left">◄</button>
+            <button class="control-btn" id="right">►</button>
+            <button class="control-btn" id="down">▼</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elementos do Jogo
+            const board = document.getElementById('game-board');
+            const scoreElement = document.getElementById('score');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const restartButton = document.getElementById('restart-button');
+
+            // Configurações do Jogo
+            const gridSize = 20;
+            let snake = [{ x: 10, y: 10 }];
+            let food = {};
+            let direction = { x: 0, y: -1 };
+            let score = 0;
+            let gameInterval;
+            let isGameOver = false;
+            let speed = 200;
+
+            // --- Funções Principais do Jogo ---
+
+            // Inicia ou reinicia o jogo
+            function startGame() {
+                isGameOver = false;
+                snake = [{ x: 10, y: 10 }];
+                direction = { x: 0, y: 0 }; // Jogo começa pausado
+                score = 0;
+                speed = 200;
+                scoreElement.textContent = 'SCORE: 0';
+                messageBox.style.display = 'none';
+                generateFood();
+                clearInterval(gameInterval); 
+                draw(); // Desenha o estado inicial do tabuleiro
+                gameInterval = setInterval(gameLoop, speed);
+            }
+            
+            // Loop principal do jogo, que roda a cada "tick"
+            function gameLoop() {
+                update();
+                // Se o jogo acabou durante a atualização, não desenha o próximo quadro
+                if (isGameOver) {
+                    return;
+                }
+                draw();
+            }
+
+            // Atualiza o estado do jogo (movimento, colisões, etc.)
+            function update() {
+                if (isGameOver) return;
+
+                // Se a direção for (0,0), o jogo está esperando o primeiro movimento
+                if (direction.x === 0 && direction.y === 0) return;
+
+                const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+                // Verifica colisão com as paredes
+                if (head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize) {
+                    endGame();
+                    return;
+                }
+                
+                // Adiciona a nova cabeça
+                snake.unshift(head);
+
+                // Verifica colisão com a própria cobra
+                for (let i = 1; i < snake.length; i++) {
+                    if (head.x === snake[i].x && head.y === snake[i].y) {
+                        endGame();
+                        return;
+                    }
+                }
+
+                // Verifica se comeu a comida
+                if (head.x === food.x && head.y === food.y) {
+                    score++;
+                    scoreElement.textContent = 'SCORE: ' + score;
+                    generateFood();
+                    // Aumenta a velocidade
+                    speed = Math.max(50, speed * 0.95);
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(gameLoop, speed);
+                } else {
+                    // Remove a cauda se não comeu
+                    snake.pop();
+                }
+            }
+
+            // Limpa e desenha todos os elementos no tabuleiro
+            function draw() {
+                board.innerHTML = ''; // Limpa o tabuleiro
+                drawSnake();
+                drawFood();
+                // Garante que a caixa de mensagem seja redesenhada se estiver ativa
+                if (messageBox.style.display === 'block') {
+                    board.appendChild(messageBox);
+                }
+            }
+
+            // Desenha a cobra
+            function drawSnake() {
+                snake.forEach(segment => {
+                    const snakeElement = document.createElement('div');
+                    snakeElement.style.gridRowStart = segment.y + 1;
+                    snakeElement.style.gridColumnStart = segment.x + 1;
+                    snakeElement.classList.add('snake-bit');
+                    board.appendChild(snakeElement);
+                });
+            }
+
+            // Desenha a comida
+            function drawFood() {
+                const foodElement = document.createElement('div');
+                foodElement.style.gridRowStart = food.y + 1;
+                foodElement.style.gridColumnStart = food.x + 1;
+                foodElement.classList.add('food');
+                board.appendChild(foodElement);
+            }
+
+            // Gera uma nova posição para a comida
+            function generateFood() {
+                let newFoodPosition;
+                do {
+                    newFoodPosition = {
+                        x: Math.floor(Math.random() * gridSize),
+                        y: Math.floor(Math.random() * gridSize)
+                    };
+                } while (isFoodOnSnake(newFoodPosition));
+                food = newFoodPosition;
+            }
+
+            // Verifica se a posição da comida está sobre a cobra
+            function isFoodOnSnake(position) {
+                return snake.some(segment => segment.x === position.x && segment.y === position.y);
+            }
+
+            // Finaliza o jogo e mostra a mensagem
+            function endGame() {
+                isGameOver = true;
+                clearInterval(gameInterval);
+                showMessage("Perdeu, Carol! Tá me devendo uma pipoca.");
+            }
+
+            // Mostra a caixa de mensagem
+            function showMessage(text, showButton = true) {
+                if (!board.contains(messageBox)) {
+                     board.appendChild(messageBox);
+                }
+                messageText.innerHTML = text;
+                restartButton.style.display = showButton ? 'block' : 'none';
+                messageBox.style.display = 'block';
+            }
+            
+            // --- Controles ---
+
+            // Muda a direção da cobra com base na tecla pressionada
+            function changeDirection(event) {
+                 const keyPressed = event.key;
+                
+                 // Remove a mensagem inicial ao começar a mover
+                 if(direction.x === 0 && direction.y === 0 && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(keyPressed)) {
+                     messageBox.style.display = 'none';
+                 }
+
+                const goingUp = direction.y === -1;
+                const goingDown = direction.y === 1;
+                const goingRight = direction.x === 1;
+                const goingLeft = direction.x === -1;
+
+                if (keyPressed === 'ArrowUp' && !goingDown) {
+                    direction = { x: 0, y: -1 };
+                } else if (keyPressed === 'ArrowDown' && !goingUp) {
+                    direction = { x: 0, y: 1 };
+                } else if (keyPressed === 'ArrowLeft' && !goingRight) {
+                    direction = { x: -1, y: 0 };
+                } else if (keyPressed === 'ArrowRight' && !goingLeft) {
+                    direction = { x: 1, y: 0 };
+                }
+            }
+            
+             // Lógica de clique para botões na tela
+            function handleButtonPress(dir) {
+                if(direction.x === 0 && direction.y === 0) {
+                     messageBox.style.display = 'none';
+                }
+
+                const goingUp = direction.y === -1;
+                const goingDown = direction.y === 1;
+                const goingRight = direction.x === 1;
+                const goingLeft = direction.x === -1;
+                
+                if (dir === 'up' && !goingDown) direction = { x: 0, y: -1 };
+                if (dir === 'down' && !goingUp) direction = { x: 0, y: 1 };
+                if (dir === 'left' && !goingRight) direction = { x: -1, y: 0 };
+                if (dir === 'right' && !goingLeft) direction = { x: 1, y: 0 };
+            }
+
+            // Adiciona ouvintes de evento
+            document.addEventListener('keydown', changeDirection);
+            restartButton.addEventListener('click', startGame);
+
+            document.getElementById('up').addEventListener('click', () => handleButtonPress('up'));
+            document.getElementById('down').addEventListener('click', () => handleButtonPress('down'));
+            document.getElementById('left').addEventListener('click', () => handleButtonPress('left'));
+            document.getElementById('right').addEventListener('click', () => handleButtonPress('right'));
+
+            // Inicia o jogo pela primeira vez
+            startGame();
+        });
+    </script>
+</body>
+</html>
